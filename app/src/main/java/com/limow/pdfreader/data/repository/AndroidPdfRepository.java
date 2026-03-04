@@ -69,6 +69,43 @@ public class AndroidPdfRepository implements PdfRepository {
     @Override
     public PageData renderPage(Integer pageIndex) {
 
+        if(renderer == null){
+            throw new IllegalArgumentException("El PDF no se ha abierto");
+        }
+
+        if(pageIndex < 0 || pageIndex >= renderer.getPageCount()){
+            throw new IllegalArgumentException("Indice de pagina invalido");
+        }
+
+        PdfRenderer.Page page = null;
+
+        try {
+
+             page = renderer.openPage(pageIndex);
+
+             int width = page.getWidth();
+             int height = page.getHeight();
+
+             var bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+
+             page.render(bitmap, null, null, RENDER_MODE_FOR_DISPLAY);
+
+             var byteArray = convertBitmapToByteArray(bitmap);
+
+             return new PageData(width, height, byteArray);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Fallo al renderizar la pagina", e);
+        } finally {
+            if(page!= null){
+                page.close();
+            }
+        }
+    }
+
+
+
+            /**
         var page = renderer.openPage(pageIndex);
         
         int width = page.getWidth();
@@ -82,7 +119,8 @@ public class AndroidPdfRepository implements PdfRepository {
         var byteArray = convertBitmapToByteArray(bitmap);
 
         return new PageData(width, height, byteArray);
-    }
+             **/
+
 
     @Override
     public void close() {
