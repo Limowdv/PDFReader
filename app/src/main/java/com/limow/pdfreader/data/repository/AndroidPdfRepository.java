@@ -103,8 +103,6 @@ public class AndroidPdfRepository implements PdfRepository {
         }
     }
 
-
-
             /**
         var page = renderer.openPage(pageIndex);
         
