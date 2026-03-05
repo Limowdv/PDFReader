@@ -5,10 +5,11 @@ import static android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY;
 
 import android.content.ContentResolver;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
-import android.util.Log;
+import android.util.LruCache;
 
 import com.limow.pdfreader.domain.model.PageData;
 import com.limow.pdfreader.domain.model.PdfDocument;
@@ -16,6 +17,8 @@ import com.limow.pdfreader.domain.repository.PdfRepository;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class AndroidPdfRepository implements PdfRepository {
 
@@ -23,13 +26,16 @@ public class AndroidPdfRepository implements PdfRepository {
     private ParcelFileDescriptor fileDescriptor;
     private PdfRenderer renderer;
     private Boolean isOpen;
+    private LruCache<Integer, PageData> pageCache;
+
+    private final static int MAX_PAGES = 10;
 
     public AndroidPdfRepository(ContentResolver contentResolver){
         this.contentResolver = contentResolver;
         this.fileDescriptor = null;
         this.renderer = null;
         this.isOpen = false;
-
+        pageCache = new LruCache<>(MAX_PAGES);
     }
 
     @Override
@@ -52,6 +58,8 @@ public class AndroidPdfRepository implements PdfRepository {
 
             int totalPages = renderer.getPageCount();
 
+            isOpen = true;
+
             return new PdfDocument(totalPages);
 
         } catch (IOException e){
@@ -69,12 +77,16 @@ public class AndroidPdfRepository implements PdfRepository {
     @Override
     public PageData renderPage(Integer pageIndex) {
 
-        if(renderer == null){
+        if(!isOpen){
             throw new IllegalArgumentException("El PDF no se ha abierto");
         }
 
         if(pageIndex < 0 || pageIndex >= renderer.getPageCount()){
             throw new IllegalArgumentException("Indice de pagina invalido");
+        }
+
+        if(pageCache.snapshot().containsKey(pageIndex)){
+            return pageCache.get(pageIndex);
         }
 
         PdfRenderer.Page page = null;
@@ -86,13 +98,41 @@ public class AndroidPdfRepository implements PdfRepository {
              int width = page.getWidth();
              int height = page.getHeight();
 
-             var bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+             int maxSize = 2048;
 
-             page.render(bitmap, null, null, RENDER_MODE_FOR_DISPLAY);
+             double scaleWidth;
+             double scaleHeight;
+             double scale = 1.0;
+
+             if(width > maxSize || height > maxSize){
+                 scaleWidth = maxSize / width;
+                 scaleHeight = maxSize / height;
+                 if (scaleHeight > scaleWidth){
+                     scale = scaleWidth;
+                 } else if (scaleHeight < scaleWidth) {
+                     scale = scaleHeight;
+                 }
+             }
+
+             int scaledWidth = (int) (width * scale);
+             int scaledHeight = (int) (height *scale);
+
+             var bitmap = Bitmap.createBitmap(scaledWidth, scaledHeight, Bitmap.Config.ARGB_8888);
+
+             var matrix = new Matrix();
+             matrix.setScale((float) scale, (float) scale);
+
+             page.render(bitmap, null, matrix, RENDER_MODE_FOR_DISPLAY);
 
              var byteArray = convertBitmapToByteArray(bitmap);
 
-             return new PageData(width, height, byteArray);
+             bitmap.recycle();
+
+             PageData pagina = new PageData(width, height, byteArray);
+
+             pageCache.put(pageIndex, pagina);
+
+             return pagina;
 
         } catch (Exception e) {
             throw new RuntimeException("Fallo al renderizar la pagina", e);
@@ -102,23 +142,6 @@ public class AndroidPdfRepository implements PdfRepository {
             }
         }
     }
-
-            /**
-        var page = renderer.openPage(pageIndex);
-        
-        int width = page.getWidth();
-
-        int height = page.getHeight();
-
-        var bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-        page.render(bitmap, null, null, RENDER_MODE_FOR_DISPLAY);
-
-        var byteArray = convertBitmapToByteArray(bitmap);
-
-        return new PageData(width, height, byteArray);
-             **/
-
 
     @Override
     public void close() {
@@ -142,6 +165,8 @@ public class AndroidPdfRepository implements PdfRepository {
         } finally{
             fileDescriptor=null;
         }
+
+        isOpen = false;
 
     }
 }
