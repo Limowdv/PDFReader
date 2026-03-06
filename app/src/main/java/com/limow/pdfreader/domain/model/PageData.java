@@ -2,9 +2,9 @@ package com.limow.pdfreader.domain.model;
 
 public class PageData {
 
-    private Integer width;
-    private Integer height;
-    private byte[] content;
+    private final Integer width;
+    private final Integer height;
+    private final byte[] content;
 
     public PageData(Integer width, Integer height, byte[]content) {
         this.width = width;

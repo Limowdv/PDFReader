@@ -5,7 +5,7 @@ import com.limow.pdfreader.domain.repository.PdfRepository;
 
 public class OpenPdfUseCase {
 
-    private PdfRepository repository;
+    private final PdfRepository repository;
 
     public OpenPdfUseCase(PdfRepository repository){
         this.repository = repository;

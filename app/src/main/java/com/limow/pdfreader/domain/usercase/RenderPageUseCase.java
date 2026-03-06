@@ -5,7 +5,7 @@ import com.limow.pdfreader.domain.repository.PdfRepository;
 
 public class RenderPageUseCase {
 
-    private PdfRepository repository;
+    private final PdfRepository repository;
 
     public RenderPageUseCase(PdfRepository repository) {
         this.repository = repository;

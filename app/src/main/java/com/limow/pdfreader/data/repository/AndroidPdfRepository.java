@@ -17,25 +17,29 @@ import com.limow.pdfreader.domain.repository.PdfRepository;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+
 
 public class AndroidPdfRepository implements PdfRepository {
 
-    private ContentResolver contentResolver;
+    private final ContentResolver contentResolver;
     private ParcelFileDescriptor fileDescriptor;
     private PdfRenderer renderer;
     private Boolean isOpen;
-    private LruCache<Integer, PageData> pageCache;
+    private final LruCache<Integer, PageData> pageCache;
 
-    private final static int MAX_PAGES = 10;
+    private final static int MAX_CACHE_BYTES = 20 * 1024 * 1024;
 
     public AndroidPdfRepository(ContentResolver contentResolver){
         this.contentResolver = contentResolver;
         this.fileDescriptor = null;
         this.renderer = null;
         this.isOpen = false;
-        pageCache = new LruCache<>(MAX_PAGES);
+        pageCache = new LruCache<>(MAX_CACHE_BYTES){
+            @Override
+            protected int sizeOf(Integer key, PageData value){
+                return value.getContent().length;
+            }
+        };
     }
 
     @Override
