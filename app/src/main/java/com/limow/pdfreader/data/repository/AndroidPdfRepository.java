@@ -43,7 +43,19 @@ public class AndroidPdfRepository implements PdfRepository {
     }
 
     @Override
-    public PdfDocument open(String uri) {
+    public int getTotalPages() {
+        if(renderer == null){
+            throw new RuntimeException("PDF no abierto");
+        }
+        return renderer.getPageCount();
+    }
+
+    @Override
+    public void open(String uri) {
+
+        if(uri == null || uri.isBlank()){
+            throw new IllegalArgumentException("Uri no encontrada");
+        }
 
         if(renderer !=null){
             throw new IllegalStateException("El PDF ya ha sido abierto");
@@ -55,16 +67,18 @@ public class AndroidPdfRepository implements PdfRepository {
             fileDescriptor = contentResolver.openFileDescriptor(parsedUri, "r");
 
             if(fileDescriptor == null){
-                throw new IOException("El descriptor es nulo");
+                throw new IOException("El descriptor no ha sido encontrado");
             }
 
             renderer = new PdfRenderer(fileDescriptor);
 
-            int totalPages = renderer.getPageCount();
+            var totalPages = renderer.getPageCount();
+
+            if(totalPages <=0){
+                throw new RuntimeException("PDF sin paginas");
+            }
 
             isOpen = true;
-
-            return new PdfDocument(totalPages);
 
         } catch (IOException e){
             close();
@@ -89,8 +103,10 @@ public class AndroidPdfRepository implements PdfRepository {
             throw new IllegalArgumentException("Indice de pagina invalido");
         }
 
-        if(pageCache.snapshot().containsKey(pageIndex)){
-            return pageCache.get(pageIndex);
+        var cachedPage = pageCache.get(pageIndex);
+
+        if(cachedPage != null){
+            return cachedPage;
         }
 
         PdfRenderer.Page page = null;
@@ -168,6 +184,10 @@ public class AndroidPdfRepository implements PdfRepository {
 
         } finally{
             fileDescriptor=null;
+        }
+
+        if(pageCache!=null){
+            pageCache.evictAll();
         }
 
         isOpen = false;

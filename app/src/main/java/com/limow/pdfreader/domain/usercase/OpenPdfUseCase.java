@@ -11,8 +11,8 @@ public class OpenPdfUseCase {
         this.repository = repository;
     }
 
-    public PdfDocument execute(String uri){
-        return repository.open(uri);
+    public void execute(String uri){
+        repository.open(uri);
     }
 
 

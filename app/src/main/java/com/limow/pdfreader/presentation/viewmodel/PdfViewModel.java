@@ -15,15 +15,31 @@ public class PdfViewModel {
     }
 
     public void openPdf(String uri){
-        PdfDocument document = repository.open(uri);
-        totalPages = document.getTotalPages();
+        if(uri == null){
+            throw new IllegalArgumentException("Uri invalida");
+        }
+
+        repository.open(uri);
+
+        totalPages = repository.getTotalPages();
+
+        if(totalPages<=0){
+            throw new RuntimeException("El PDF no tiene paginas");
+        }
         currentPage = 0;
     }
 
-    public PageData renderPage(Integer pageIndex){
-        PageData page = repository.renderPage(pageIndex);
+    public PageData renderPage(int pageIndex){
+        if(pageIndex<0){
+            return null;
+        }
+
+        if(pageIndex >= totalPages){
+            return null;
+        }
+
         currentPage = pageIndex;
-        return page;
+        return repository.renderPage(pageIndex);
     }
 
     public void closePdf(){
